@@ -11,6 +11,7 @@ import com.itangcent.common.model.Request
 import com.itangcent.common.model.URL
 import com.itangcent.common.utils.*
 import com.itangcent.idea.plugin.api.export.rule.RequestRuleWrap
+import com.itangcent.idea.plugin.utils.RestEasyClassName
 import com.itangcent.idea.plugin.utils.SpringClassName
 import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.jvm.AnnotationHelper
@@ -44,12 +45,14 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
         return SpringClassName.SPRING_CONTROLLER_ANNOTATION.any {
             annotationHelper!!.hasAnn(psiClass, it)
         } || (ruleComputer!!.computer(ClassExportRuleKeys.IS_CTRL, psiClass) ?: false)
+                || RestEasyClassName.REST_CONTROLLER_ANNOTATION.all { annotationHelper!!.hasAnn(psiClass, it) }
     }
 
     override fun isApi(psiMethod: PsiMethod): Boolean {
         return SpringClassName.SPRING_REQUEST_MAPPING_ANNOTATIONS.any {
             annotationHelper!!.hasAnn(psiMethod, it)
-        }
+        } || RestEasyClassName.REST_REQUEST_MAPPING_ANNOTATIONS.any {
+            annotationHelper!!.hasAnn(psiMethod, it) }
     }
 
     override fun processMethodParameter(request: Request, parameter: ExplicitParameterInfo, paramDesc: String?) {
@@ -237,7 +240,7 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
         val ctrlHttpMethod: String? = kv.getAs("ctrlHttpMethod")
         val requestMapping = findRequestMappingInAnn(method.psi())
         kv["requestMapping"] = requestMapping
-        var httpMethod = findHttpMethod(requestMapping)
+        var httpMethod = findHttpMethodRestEasy(method)
         if (httpMethod == HttpMethod.NO_METHOD && ctrlHttpMethod != HttpMethod.NO_METHOD) {
             httpMethod = ctrlHttpMethod!!
         }
@@ -407,6 +410,19 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
         return HttpMethod.NO_METHOD
     }
 
+    private fun findHttpMethodRestEasy(method: ExplicitMethod): String {
+        val ann = RestEasyClassName.REST_HTTP_METHOD_ANNOTATIONS
+                .firstOrNull { annotationHelper!!.hasAnn(method.psi(), it) }
+        return when (ann) {
+            RestEasyClassName.GET_MAPPING -> HttpMethod.GET
+            RestEasyClassName.POST_MAPPING -> HttpMethod.POST
+            RestEasyClassName.PUT_MAPPING -> HttpMethod.PUT
+            RestEasyClassName.DELETE_MAPPING -> HttpMethod.DELETE
+            RestEasyClassName.PATCH_MAPPING -> HttpMethod.PATCH
+            else -> HttpMethod.NO_METHOD
+        }
+    }
+
     private fun findRequestMapping(psiClass: PsiClass): Pair<Map<String, Any?>, String>? {
         val requestMappingAnn = findRequestMappingInAnn(psiClass)
         if (requestMappingAnn != null) return requestMappingAnn
@@ -420,14 +436,15 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
     }
 
     private fun findRequestMappingInAnn(ele: PsiElement): Pair<Map<String, Any?>, String>? {
-        return SpringClassName.SPRING_REQUEST_MAPPING_ANNOTATIONS
-                .stream()
+        return listOf(SpringClassName.SPRING_REQUEST_MAPPING_ANNOTATIONS, RestEasyClassName.REST_REQUEST_MAPPING_ANNOTATIONS)
+                .flatten()
                 .map { ann -> annotationHelper!!.findAnnMap(ele, ann)?.to(ann) }
                 .firstOrNull { it != null }
     }
 
     protected fun isRequestBody(parameter: PsiParameter): Boolean {
         return annotationHelper!!.hasAnn(parameter, SpringClassName.REQUEST_BODY_ANNOTATION)
+                || parameter.annotations.isNullOrEmpty()
     }
 
     protected fun isModelAttr(parameter: PsiParameter): Boolean {
@@ -440,6 +457,7 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
 
     protected fun findPathVariable(parameter: PsiParameter): Map<String, Any?>? {
         return annotationHelper!!.findAnnMap(parameter, SpringClassName.PATH_VARIABLE_ANNOTATION)
+                ?: annotationHelper.findAnnMap(parameter, RestEasyClassName.PATH_VARIABLE_ANNOTATION)
     }
 
     protected fun findCookieValue(parameter: PsiParameter): Map<String, Any?>? {
@@ -448,6 +466,7 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
 
     protected fun findRequestParam(parameter: PsiParameter): Map<String, Any?>? {
         return annotationHelper!!.findAnnMap(parameter, SpringClassName.REQUEST_PARAM_ANNOTATION)
+                ?: annotationHelper.findAnnMap(parameter, RestEasyClassName.REQUEST_PARAM_ANNOTATION)
     }
 
     protected fun findParamName(requestParamAnn: Map<String, Any?>?): String? {

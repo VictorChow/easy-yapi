@@ -11,6 +11,7 @@ import com.itangcent.common.utils.stream
 import com.itangcent.idea.plugin.StatusRecorder
 import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.WorkerStatus
+import com.itangcent.idea.plugin.utils.RestEasyClassName
 import com.itangcent.idea.plugin.utils.SpringClassName
 import com.itangcent.idea.psi.PsiMethodResource
 import com.itangcent.intellij.config.rule.RuleComputer
@@ -107,6 +108,7 @@ open class SimpleRequestClassExporter : ClassExporter, Worker {
         return psiClass.annotations.any {
             SpringClassName.SPRING_CONTROLLER_ANNOTATION.contains(it.qualifiedName)
         } || (ruleComputer!!.computer(ClassExportRuleKeys.IS_CTRL, psiClass) ?: false)
+                || RestEasyClassName.REST_CONTROLLER_ANNOTATION.all { annotationHelper!!.hasAnn(psiClass, it) }
     }
 
     private fun shouldIgnore(psiElement: PsiElement): Boolean {
@@ -151,6 +153,12 @@ open class SimpleRequestClassExporter : ClassExporter, Worker {
                 SpringClassName.DELETE_MAPPING,
                 SpringClassName.PATCH_MAPPING,
                 SpringClassName.POST_MAPPING,
-                SpringClassName.PUT_MAPPING)
+                SpringClassName.PUT_MAPPING,
+                RestEasyClassName.REQUEST_MAPPING_ANNOTATION,
+                RestEasyClassName.GET_MAPPING,
+                RestEasyClassName.DELETE_MAPPING,
+                RestEasyClassName.POST_MAPPING,
+                RestEasyClassName.PUT_MAPPING,
+                RestEasyClassName.PATCH_MAPPING)
     }
 }

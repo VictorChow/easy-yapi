@@ -177,9 +177,7 @@ abstract class AbstractRequestClassExporter : ClassExporter, Worker {
         val request = Request()
 
         request.resource = PsiMethodResource(method.psi(), psiClass)
-
         processMethod(method, kv, request)
-
         processMethodParameters(method, request)
 
         processResponse(method, request)
@@ -188,6 +186,8 @@ abstract class AbstractRequestClassExporter : ClassExporter, Worker {
 
         docHandle(request)
     }
+
+
 
     protected open fun processMethod(method: ExplicitMethod, kv: KV<String, Any?>, request: Request) {
         apiHelper!!.nameAndAttrOfApi(method, {
