@@ -240,7 +240,11 @@ open class SpringRequestClassExporter : AbstractRequestClassExporter() {
         val ctrlHttpMethod: String? = kv.getAs("ctrlHttpMethod")
         val requestMapping = findRequestMappingInAnn(method.psi())
         kv["requestMapping"] = requestMapping
-        var httpMethod = findHttpMethodRestEasy(method)
+        var httpMethod = if (annotationHelper!!.hasAnn(method.psi(), RestEasyClassName.REQUEST_MAPPING_ANNOTATION)) {
+            findHttpMethodRestEasy(method)
+        } else {
+            findHttpMethod(requestMapping)
+        }
         if (httpMethod == HttpMethod.NO_METHOD && ctrlHttpMethod != HttpMethod.NO_METHOD) {
             httpMethod = ctrlHttpMethod!!
         }
